@@ -7,6 +7,6 @@
                  [org.clojure/core.async "0.4.474"]
                  [aleph "0.4.4"]
                  [cheshire "5.8.0"]
+                 [com.cognitect/transit-clj "0.8.300"]
                  [crypto-random "1.2.0"]
                  [gloss "0.2.6"]])
-
