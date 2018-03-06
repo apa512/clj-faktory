@@ -8,7 +8,7 @@
             [gloss.io :as io]
             [manifold.stream :as s]
             [clj-faktory.protocol.redis :as redis])
-  (:import [java.net InetAddress]))
+  (:import [java.net InetAddress URI]))
 
 (def ^:private response-codec
   (redis/redis-codec :utf-8))
@@ -52,6 +52,9 @@
     (send-command client [:hello worker-info])
     worker-info))
 
-(defn connect [url]
-  @(tcp/client {:host "localhost"
-                :port 7419}))
+(defn connect [uri]
+  (let [uri (URI. uri)
+        host (.getHost uri)
+        port (.getPort uri)]
+    @(tcp/client {:host host
+                  :port port})))

@@ -4,8 +4,7 @@
             [clj-faktory.net :as net]
             [crypto.random :as random]
             [clj-faktory.protocol.transit :as transit]
-            [manifold.stream :as stream])
-  (:import [java.net InetAddress]))
+            [manifold.stream :as stream]))
 
 (defmulti perform (comp keyword :jobtype))
 
@@ -81,11 +80,14 @@
   (run-work-loop worker-manager)
   worker-manager)
 
-(defn connect []
-  (let [client (net/connect nil)
-        wid (net/handshake client)]
-    {:client client
-     :wid wid}))
+(defn connect
+  ([uri]
+   (let [client (net/connect uri)
+         wid (net/handshake client)]
+     {:client client
+      :wid wid}))
+  ([]
+   (connect "tcp://localhost:7419")))
 
 (defn worker-manager
   ([client {:keys [concurrency heartbeat queues] :or {concurrency 1
