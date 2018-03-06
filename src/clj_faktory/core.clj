@@ -83,7 +83,7 @@
 (defn connect
   ([uri]
    (let [client (net/connect uri)
-         wid (net/handshake client)]
+         {:keys [wid]} (net/handshake client)]
      {:client client
       :wid wid}))
   ([]
