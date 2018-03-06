@@ -1,4 +1,4 @@
-(ns clj-faktory.transit
+(ns clj-faktory.protocol.transit
   (:refer-clojure :exclude [read])
   (:require [cognitect.transit :as transit])
   (:import [java.io ByteArrayInputStream ByteArrayOutputStream]))

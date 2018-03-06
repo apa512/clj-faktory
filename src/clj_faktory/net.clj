@@ -7,11 +7,11 @@
             [gloss.core :as gloss]
             [gloss.io :as io]
             [manifold.stream :as s]
-            [clj-faktory.redis-protocol :as redis-protocol])
+            [clj-faktory.protocol.redis :as redis])
   (:import [java.net InetAddress]))
 
 (def ^:private response-codec
-  (redis-protocol/redis-codec :utf-8))
+  (redis/redis-codec :utf-8))
 
 (gloss/defcodec- command-codec
   (gloss/string :utf-8 :delimiters ["\r\n"]))
@@ -36,7 +36,8 @@
   (let [[resp-type response] (read-response client)]
     (case resp-type
       :single-line response
-      :bulk (cheshire/parse-string response true))))
+      :bulk (cheshire/parse-string response true)
+      :error (throw (Exception. response)))))
 
 (defn- send-command* [client command]
   @(s/put! client (io/encode command-codec (command-str command))))

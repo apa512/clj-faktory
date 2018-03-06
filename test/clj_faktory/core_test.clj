@@ -3,10 +3,11 @@
             [clj-faktory.core :refer :all]))
 
 (deftest core-test
-  (let [worker-manager (worker-manager {:concurrency 1
-                                        :heartbeat 400})]
-    (start worker-manager)
+  (let [client (connect)
+        worker-manager (worker-manager client {:concurrency 1
+                                               :heartbeat 15000})]
     (prn (perform-async worker-manager {:jid "12345678"
-                                        :jobtype :hej
+                                        :jobtype :profile/github
                                         :args [:github 319058]}))
+    (Thread/sleep 1000)
     (stop worker-manager)))
