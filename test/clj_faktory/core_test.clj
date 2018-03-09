@@ -8,8 +8,7 @@
 (def finished-jobs (atom []))
 
 (defmethod perform :save-job [job]
-  (swap! finished-jobs conj job)
-  (throw (Exception. "Hora")))
+  (swap! finished-jobs conj job))
 
 (def test-interceptor
   {:leave (fn [job]
