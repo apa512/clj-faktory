@@ -21,8 +21,8 @@
        (remove nil?)
        (reduce #(%2 %1) job)))
 
-(defn- fail [conn-pool job e]
-  (send-command conn-pool [:fail {:jid (:jid job)
+(defn- fail [conn-pool jid e]
+  (send-command conn-pool [:fail {:jid jid
                                   :message (.getMessage e)
                                   :errtype (str (class e))
                                   :backtrace (map #(.toString %) (.getStackTrace e))}]))
@@ -38,7 +38,7 @@
               (perform job)
               (send-command conn-pool [:ack {:jid (:jid job)}])
               (catch Exception e
-                (fail conn-pool job e)))))
+                (fail conn-pool (:jid job) e)))))
          (recur))))))
 
 (defn stop [{:keys [conn-pool]}]
@@ -49,7 +49,8 @@
     (run-work-loop worker-manager))
   worker-manager)
 
-(def conn-pool socket/conn-pool)
+(defn info [{:keys [conn-pool]}]
+  (send-command conn-pool [:info]))
 
 (defn perform-async
   ([{:keys [conn-pool interceptors]} job-type args opts]
@@ -63,6 +64,8 @@
      (send-command conn-pool [:push job])))
   ([worker-manager job-type args]
    (perform-async worker-manager job-type args {})))
+
+(def conn-pool socket/conn-pool)
 
 (defn worker-manager
   ([conn-pool {:keys [concurrency

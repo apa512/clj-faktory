@@ -24,7 +24,7 @@
     (dotimes [n 10]
       (perform-async worker-manager :save-job [:hello "world"] {:queue "test"
                                                                 :retry 0}))
-    (Thread/sleep 200)
+    (Thread/sleep 300)
     (is (= (count @finished-jobs) 10))
     (is (= (get-in @finished-jobs [0 :test]) 1234))
     (is (= (get-in @finished-jobs [0 :args]) [:hello "world"]))
