@@ -2,31 +2,24 @@
   (:require [clojure.test :refer :all]
             [pool.core :as pool]
             [clj-faktory.core :refer :all]
-            [clj-faktory.interceptors :refer [transit-args]]
             [clj-faktory.socket :as socket]))
 
-(def finished-jobs (atom []))
+(def processed-args (atom []))
 
-(defmethod perform :save-job [job]
-  (swap! finished-jobs conj job))
-
-(def test-interceptor
-  {:leave (fn [job]
-            (assoc job :test 1234))})
+(defn save-args [a b]
+  (swap! processed-args conj [a b]))
 
 (deftest core-test
   (let [conn-pool (conn-pool "tcp://localhost:7419")
         worker-manager (worker-manager conn-pool {:concurrency 4
-                                                  :interceptors [test-interceptor
-                                                                 transit-args]
                                                   :queues ["test" "default"]})]
+    (register-job :save-args save-args)
     (start worker-manager)
     (dotimes [n 10]
-      (perform-async worker-manager :save-job [:hello "world"] {:queue "test"
-                                                                :retry 0}))
+      (perform-async worker-manager :save-args [:hello "world"] {:queue "test"
+                                                                 :retry 0}))
     (Thread/sleep 300)
-    (is (= (count @finished-jobs) 10))
-    (is (= (get-in @finished-jobs [0 :test]) 1234))
-    (is (= (get-in @finished-jobs [0 :args]) [:hello "world"]))
-    (reset! finished-jobs [])
-    (stop worker-manager)))
+    (is (= (count @processed-args) 10))
+    (is (= (first @processed-args) [:hello "world"]))
+    (stop worker-manager)
+    (reset! processed-args [])))

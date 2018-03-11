@@ -9,7 +9,7 @@
            [java.security MessageDigest]))
 
 (defn- hostname []
-  (or (try (.getHostName (InetAddress/getLocalHost))
+  (or #_(try (.getHostName (InetAddress/getLocalHost))
            (catch Exception _))
       (some-> (shell/sh "hostname")
               :out
