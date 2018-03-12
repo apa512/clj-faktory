@@ -27,8 +27,7 @@
     (case resp-type
       \+ (some-> response
                  (string/split #" ")
-                 rest
-                 first
+                 second
                  (cheshire/parse-string true))
       \$ (when-not (= response "-1")
            (cheshire/parse-string (sockets/read-line socket) true))
