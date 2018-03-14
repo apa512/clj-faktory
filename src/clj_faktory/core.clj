@@ -33,6 +33,9 @@
                                   :errtype (str (class e))
                                   :backtrace (map #(.toString %) (.getStackTrace e))}]))
 
+(defn beat [conn-pool wid]
+  (send-command conn-pool [:beat {:wid wid}]))
+
 (defn ack [conn-pool jid]
   (send-command conn-pool [:ack {:jid jid}]))
 
@@ -81,6 +84,11 @@
   (pool/close conn-pool))
 
 (defn start [worker-manager]
+  (future
+   (loop []
+     (Thread/sleep (:heartbeat worker-manager))
+     (beat (:conn-pool worker-manager) (:wid worker-manager))
+     (recur)))
   (dotimes [_ (:concurrency worker-manager)]
     (run-work-loop worker-manager))
   worker-manager)
