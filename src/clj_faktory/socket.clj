@@ -1,6 +1,7 @@
 (ns clj-faktory.socket
   (:require [clojure.java.shell :as shell]
             [clojure.string :as string]
+            [clojure.tools.logging :as log]
             [cheshire.core :as cheshire]
             [clj-sockets.core :as sockets]
             [crypto.random :as random]
@@ -9,7 +10,7 @@
            [java.security MessageDigest]))
 
 (defn- hostname []
-  (or #_(try (.getHostName (InetAddress/getLocalHost))
+  (or (try (.getHostName (InetAddress/getLocalHost))
            (catch Exception _))
       (some-> (shell/sh "hostname")
               :out
@@ -24,6 +25,7 @@
   (let [[resp-type response] (-> (sockets/read-line socket)
                                  ((juxt first rest))
                                  (update 1 (partial apply str)))]
+    (log/debug "<<<" resp-type response)
     (case resp-type
       \+ (some-> response
                  (string/split #" ")
@@ -42,6 +44,7 @@
        (string/join " ")))
 
 (defn send-command [socket command]
+  (log/debug ">>>" (command-str command))
   (sockets/write-line socket (command-str command))
   (read-and-parse-response socket))
 

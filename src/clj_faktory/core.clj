@@ -1,5 +1,6 @@
 (ns clj-faktory.core
-  (:require [cheshire.core :as cheshire]
+  (:require [clojure.tools.logging :as log]
+            [cheshire.core :as cheshire]
             [crypto.random :as random]
             [pool.core :as pool]
             [clj-faktory.protocol.transit :as transit]
@@ -66,9 +67,10 @@
 (defn info [{:keys [conn-pool]}]
   (send-command conn-pool [:info]))
 
-(defn- run-work-loop [{:keys [conn-pool queues]}]
+(defn- run-work-loop [{:keys [conn-pool queues]} n]
   (future
    (loop []
+     (log/debug "Worker" n "checking in")
      (let [job (decode-transit-args (fetch conn-pool queues))]
        (when-not (= job :closed)
          (when job
@@ -87,10 +89,11 @@
   (future
    (loop []
      (Thread/sleep (:heartbeat worker-manager))
+     (log/debug "❤❤❤")
      (beat (:conn-pool worker-manager) (:wid worker-manager))
      (recur)))
-  (dotimes [_ (:concurrency worker-manager)]
-    (run-work-loop worker-manager))
+  (dotimes [n (:concurrency worker-manager)]
+    (run-work-loop worker-manager n))
   worker-manager)
 
 (def conn-pool socket/conn-pool)
