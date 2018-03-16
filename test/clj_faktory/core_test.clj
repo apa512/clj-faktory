@@ -12,14 +12,14 @@
 (deftest core-test
   (let [conn-pool (conn-pool "tcp://localhost:7419")
         worker-manager (worker-manager conn-pool {:concurrency 4
+                                                  :heartbeat 100
                                                   :queues ["test" "default"]})]
     (register-job :save-args save-args)
     (start worker-manager)
     (dotimes [n 10]
       (perform-async worker-manager :save-args [:hello "world"] {:queue "test"
                                                                  :retry 0}))
-    (Thread/sleep 300)
+    (stop worker-manager)
     (is (= (count @processed-args) 10))
     (is (= (first @processed-args) [:hello "world"]))
-    (stop worker-manager)
     (reset! processed-args [])))

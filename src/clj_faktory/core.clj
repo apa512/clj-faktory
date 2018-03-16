@@ -4,7 +4,8 @@
             [crypto.random :as random]
             [pool.core :as pool]
             [clj-faktory.protocol.transit :as transit]
-            [clj-faktory.socket :as socket]))
+            [clj-faktory.socket :as socket])
+  (:import [java.util.concurrent Executors ScheduledThreadPoolExecutor ThreadFactory TimeUnit]))
 
 (def ^:private registered-jobs (atom {}))
 
@@ -22,11 +23,8 @@
   (not= args (cheshire/parse-string (cheshire/generate-string args))))
 
 (defn- send-command [conn-pool command]
-  (try
-   (socket/with-conn [conn conn-pool]
-     (socket/send-command conn command))
-   (catch java.lang.IllegalStateException _
-     :closed)))
+  (socket/with-conn [conn conn-pool]
+    (socket/send-command conn command)))
 
 (defn fail [conn-pool jid e]
   (send-command conn-pool [:fail {:jid jid
@@ -68,32 +66,55 @@
   (send-command conn-pool [:info]))
 
 (defn- run-work-loop [{:keys [conn-pool queues]} n]
-  (future
-   (loop []
-     (log/debug "Worker" n "checking in")
-     (let [job (decode-transit-args (fetch conn-pool queues))]
-       (when-not (= job :closed)
-         (when job
-           (try
-            (let [handler-fn (get @registered-jobs (keyword (:jobtype job)))]
-              (apply handler-fn (:args job)))
-            (ack conn-pool (:jid job))
-            (catch Exception e
-              (fail conn-pool (:jid job) e))))
-         (recur))))))
+  (loop []
+    (log/debug "Worker" n "checking in")
+    (let [{:keys [jid] :as job} (decode-transit-args (fetch conn-pool queues))
+          [result e] (when job
+                       (try
+                        (let [handler-fn (get @registered-jobs (keyword (:jobtype job)))]
+                          (apply handler-fn (:args job)))
+                        [:success]
+                        (catch InterruptedException e
+                          (prn "Interrupted")
+                          [:stopped e])
+                        (catch Throwable e
+                          [:failure e])))]
+      (case result
+        :success (do (ack conn-pool jid)
+                     (recur))
+        :failure (do (fail conn-pool jid e)
+                     (recur))
+        :stopped (fail conn-pool jid e)
+        (recur)))))
 
-(defn stop [{:keys [conn-pool]}]
-  (pool/close conn-pool))
+(defn- keep-alive [{:keys [conn-pool wid heartbeat] :as worker-manager}]
+  (let [thread-factory (reify ThreadFactory
+                         (newThread [_ runnable]
+                           (doto (Thread. runnable)
+                             (.setDaemon true))))]
+    (.scheduleWithFixedDelay (ScheduledThreadPoolExecutor. 1 thread-factory)
+                             (fn []
+                               (log/debug "❤❤❤")
+                               (beat conn-pool wid))
+                             heartbeat
+                             heartbeat
+                             TimeUnit/MILLISECONDS)))
 
-(defn start [worker-manager]
-  (future
-   (loop []
-     (Thread/sleep (:heartbeat worker-manager))
-     (log/debug "❤❤❤")
-     (beat (:conn-pool worker-manager) (:wid worker-manager))
-     (recur)))
-  (dotimes [n (:concurrency worker-manager)]
-    (run-work-loop worker-manager n))
+(defn stop [{:keys [conn-pool worker-pool :as worker-manager]}]
+  (try
+   (when-not (.awaitTermination worker-pool 2000 TimeUnit/MILLISECONDS)
+     (.shutdownNow worker-pool))
+   (catch InterruptedException e
+     (log/debug e)
+     (.shutdownNow worker-pool))
+   (finally
+    (pool/close conn-pool)))
+  worker-manager)
+
+(defn start [{:keys [worker-pool concurrency] :as worker-manager}]
+  (keep-alive worker-manager)
+  (dotimes [n concurrency]
+    (.submit worker-pool #(run-work-loop worker-manager n)))
   worker-manager)
 
 (def conn-pool socket/conn-pool)
@@ -109,9 +130,11 @@
                       queues] :or {concurrency 10
                                    heartbeat 15000
                                    queues ["default"]}}]
-   (merge conn-pool
-          {:concurrency concurrency
-           :heartbeat heartbeat
-           :queues queues}))
+   (let [worker-pool (Executors/newFixedThreadPool concurrency)]
+     (merge conn-pool
+            {:worker-pool worker-pool
+             :concurrency concurrency
+             :heartbeat heartbeat
+             :queues queues})))
   ([conn-pool]
    (worker-manager conn-pool {})))
