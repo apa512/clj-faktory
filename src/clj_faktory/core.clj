@@ -71,11 +71,11 @@
     (let [{:keys [jid] :as job} (decode-transit-args (fetch conn-pool queues))
           [result e] (when job
                        (try
-                        (let [handler-fn (get @registered-jobs (keyword (:jobtype job)))]
-                          (apply handler-fn (:args job)))
+                        (if-let [handler-fn (get @registered-jobs (keyword (:jobtype job)))]
+                          (apply handler-fn (:args job))
+                          (throw (Exception. "No handler job type")))
                         [:success]
                         (catch InterruptedException e
-                          (prn "Interrupted")
                           [:stopped e])
                         (catch Throwable e
                           [:failure e])))]
