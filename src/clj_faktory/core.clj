@@ -45,7 +45,7 @@
   (send-command conn-pool [:push job]))
 
 (defn perform-async
-  ([{:keys [conn-pool]} job-type args opts]
+  ([{:keys [prio-pool]} job-type args opts]
    (if (contains? @registered-jobs job-type)
      (let [jid (random/hex 12)
            job (cond-> (merge {:jid jid
@@ -56,7 +56,7 @@
                                :backtrace 10}
                               opts)
                  (transit-args? args) encode-transit-args)]
-       (push conn-pool job)
+       (push prio-pool job)
        jid)
      (throw (Exception. "Job type has not been registered"))))
   ([worker-manager job-type args]

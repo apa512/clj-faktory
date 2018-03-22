@@ -1,4 +1,4 @@
-(defproject com.apa512/clj-faktory "0.2.7"
+(defproject com.apa512/clj-faktory "0.2.8"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
