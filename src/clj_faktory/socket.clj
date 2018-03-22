@@ -82,12 +82,12 @@
         ~@body)
       (finally (pool/return ~pool socket#)))))
 
-(defn- make-pool [worker-info]
+(defn- make-pool [uri worker-info]
   (pool/get-pool #(connect uri worker-info)
                  :destroy sockets/close-socket))
 
 (defn conn-pool [uri]
   (let [worker-info (worker-info)]
-    {:conn-pool (make-pool worker-info)
-     :prio-pool (make-pool worker-info)
+    {:conn-pool (make-pool uri worker-info)
+     :prio-pool (make-pool uri worker-info)
      :wid (:wid worker-info)}))
