@@ -100,15 +100,17 @@
                              heartbeat
                              TimeUnit/MILLISECONDS)))
 
-(defn stop [{:keys [conn-pool worker-pool :as worker-manager]}]
+(defn stop [{:keys [conn-pool prio-pool worker-pool :as worker-manager]}]
   (try
-   (when-not (.awaitTermination worker-pool 2000 TimeUnit/MILLISECONDS)
-     (.shutdownNow worker-pool))
+   (when worker-pool
+     (when-not (.awaitTermination worker-pool 2000 TimeUnit/MILLISECONDS)
+       (.shutdownNow worker-pool)))
    (catch InterruptedException e
      (log/debug e)
      (.shutdownNow worker-pool))
    (finally
-    (pool/close conn-pool)))
+    (pool/close conn-pool)
+    (pool/close prio-pool)))
   worker-manager)
 
 (defn start [{:keys [worker-pool concurrency] :as worker-manager}]
