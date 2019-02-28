@@ -33,7 +33,8 @@
                  (cheshire/parse-string true))
       \$ (when-not (= response "-1")
            (cheshire/parse-string (sockets/read-line socket) true))
-      \- (throw (Exception. response)))))
+      \- (throw (Exception. response))
+      (throw (Exception. "Unknown connection error")))))
 
 (defn- command-str [[verb & segments]]
   (->> segments

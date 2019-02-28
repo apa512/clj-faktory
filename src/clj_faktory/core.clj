@@ -87,7 +87,7 @@
         :stopped (fail conn-pool jid e)
         (recur)))))
 
-(defn- keep-alive [{:keys [conn-pool wid heartbeat] :as worker-manager}]
+(defn- keep-alive [{:keys [conn-pool wid]} heartbeat]
   (let [thread-factory (reify ThreadFactory
                          (newThread [_ runnable]
                            (doto (Thread. runnable)
@@ -102,9 +102,8 @@
 
 (defn stop [{:keys [conn-pool prio-pool worker-pool :as worker-manager]}]
   (try
-   (when worker-pool
-     (when-not (.awaitTermination worker-pool 2000 TimeUnit/MILLISECONDS)
-       (.shutdownNow worker-pool)))
+   (when-not (.awaitTermination worker-pool 2000 TimeUnit/MILLISECONDS)
+     (.shutdownNow worker-pool))
    (catch InterruptedException e
      (log/debug e)
      (.shutdownNow worker-pool))
@@ -114,7 +113,6 @@
   worker-manager)
 
 (defn start [{:keys [worker-pool concurrency] :as worker-manager}]
-  (keep-alive worker-manager)
   (dotimes [n concurrency]
     (.submit worker-pool #(run-work-loop worker-manager n)))
   worker-manager)
@@ -130,9 +128,10 @@
   ([conn-pool {:keys [concurrency
                       heartbeat
                       queues] :or {concurrency 10
-                                   heartbeat 15000
+                                   heartbeat 10000
                                    queues ["default"]}}]
    (let [worker-pool (Executors/newFixedThreadPool concurrency)]
+     (keep-alive conn-pool heartbeat)
      (merge conn-pool
             {:worker-pool worker-pool
              :concurrency concurrency
