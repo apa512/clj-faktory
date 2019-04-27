@@ -8,5 +8,4 @@
                  [cheshire "5.8.0"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [crypto-random "1.2.0"]
-                 [clj-sockets "0.1.0"]
                  [pool "0.2.1"]])
