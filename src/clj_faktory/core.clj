@@ -87,7 +87,7 @@
         :stopped (fail conn-pool jid e)
         (recur)))))
 
-(defn- keep-alive [{:keys [conn-pool wid]} heartbeat]
+(defn- keep-alive [{:keys [conn-pool prio-pool wid]} heartbeat]
   (let [thread-factory (reify ThreadFactory
                          (newThread [_ runnable]
                            (doto (Thread. runnable)
@@ -95,6 +95,7 @@
     (.scheduleWithFixedDelay (ScheduledThreadPoolExecutor. 1 thread-factory)
                              (fn []
                                (log/debug "❤❤❤")
+                               (beat prio-pool wid)
                                (beat conn-pool wid))
                              heartbeat
                              heartbeat
