@@ -22,27 +22,23 @@
 (defn transit-args? [args]
   (not= args (cheshire/parse-string (cheshire/generate-string args))))
 
-(defn- send-command [conn-pool command]
-  (socket/with-conn [conn conn-pool]
-    (socket/send-command conn command)))
-
 (defn fail [conn-pool jid e]
-  (send-command conn-pool [:fail {:jid jid
-                                  :message (.getMessage e)
-                                  :errtype (str (class e))
-                                  :backtrace (map #(.toString %) (.getStackTrace e))}]))
+  (socket/send-command conn-pool [:fail {:jid jid
+                                         :message (.getMessage e)
+                                         :errtype (str (class e))
+                                         :backtrace (map #(.toString %) (.getStackTrace e))}]))
 
 (defn beat [conn-pool wid]
-  (send-command conn-pool [:beat {:wid wid}]))
+  (socket/send-command conn-pool [:beat {:wid wid}]))
 
 (defn ack [conn-pool jid]
-  (send-command conn-pool [:ack {:jid jid}]))
+  (socket/send-command conn-pool [:ack {:jid jid}]))
 
 (defn fetch [conn-pool queues]
-  (send-command conn-pool (cons :fetch queues)))
+  (socket/send-command conn-pool (cons :fetch queues)))
 
 (defn push [conn-pool job]
-  (send-command conn-pool [:push job]))
+  (socket/send-command conn-pool [:push job]))
 
 (defn perform-async
   ([{:keys [prio-pool]} job-type args opts]
@@ -63,7 +59,7 @@
    (perform-async worker-manager job-type args {})))
 
 (defn info [{:keys [conn-pool]}]
-  (send-command conn-pool [:info]))
+  (socket/send-command conn-pool [:info]))
 
 (defn- run-work-loop [{:keys [conn-pool queues]} n]
   (loop []

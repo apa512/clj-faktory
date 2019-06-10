@@ -6,8 +6,13 @@
             [clj-sockets.core :as sockets]
             [crypto.random :as random]
             [pool.core :as pool])
-  (:import [java.net InetAddress URI]
+  (:import [clojure.lang ExceptionInfo]
+           [java.net ConnectException InetAddress URI]
            [java.security MessageDigest]))
+
+(defn- retryable? [e]
+  (or (= (type e) ConnectException)
+      (-> e (ex-data) (:retry?))))
 
 (defn- hostname []
   (or (try (.getHostName (InetAddress/getLocalHost))
@@ -34,7 +39,9 @@
       \$ (when-not (= response "-1")
            (cheshire/parse-string (sockets/read-line socket) true))
       \- (throw (Exception. response))
-      (throw (Exception. "Unknown connection error")))))
+      (do (.close socket)
+          (throw (ex-info "Unknown socket error" {:type :socket-error
+                                                  :retry? true}))))))
 
 (defn- command-str [[verb & segments]]
   (->> segments
@@ -44,10 +51,41 @@
                %))
        (string/join " ")))
 
-(defn send-command [socket command]
+(defn- send-command-with-socket [socket command]
   (log/debug ">>>" (command-str command))
   (sockets/write-line socket (command-str command))
   (read-and-parse-response socket))
+
+(defn send-command-with-pool [conn-pool command]
+  (let [socket (pool/borrow conn-pool)]
+    (try
+     (send-command-with-socket socket command)
+     (finally
+      (if (.isClosed socket)
+        (.invalidateObject conn-pool socket)
+        (pool/return conn-pool socket))))))
+
+(defn with-retries* [f]
+  (loop [wait-ms [100 1000 10000 30000]]
+    (let [result (try
+                  (f)
+                  (catch Exception e
+                    (prn e)
+                    (if (and (seq wait-ms)
+                             (retryable? e))
+                      (Thread/sleep (first wait-ms))
+                      (throw e))
+                    ::retry))]
+      (if (= result ::retry)
+        (recur (rest wait-ms))
+        result))))
+
+(defmacro with-retries [& body]
+  `(with-retries* (fn [] ~@body)))
+
+(defn send-command [conn-pool command]
+  (with-retries
+    (send-command-with-pool conn-pool command)))
 
 (defn- hash-password
   [password salt iterations]
@@ -59,29 +97,23 @@
         (recur (dec i) (.digest digest bs))))))
 
 (defn connect [uri info]
-  (let [uri (URI. uri)
-        host (.getHost uri)
-        port (.getPort uri)
-        socket (sockets/create-socket host port)]
-    (let [{version :v
-           salt :s
-           iterations :i} (read-and-parse-response socket)]
-      (if salt
-        (if-let [hashed-password (some-> (.getUserInfo uri)
-                                         (string/split #":")
-                                         last
-                                         (hash-password salt iterations))]
-          (send-command socket [:hello (assoc info :pwdhash hashed-password)])
-          (throw (Exception. "Server requires password, but none has been configured")))
-        (send-command socket [:hello info])))
-    socket))
-
-(defmacro with-conn [[socket-name pool] & body]
-  `(let [socket# (pool/borrow ~pool)]
-     (try
-      (let [~socket-name socket#]
-        ~@body)
-      (finally (pool/return ~pool socket#)))))
+  (with-retries
+    (let [uri (URI. uri)
+          host (.getHost uri)
+          port (.getPort uri)
+          socket (sockets/create-socket host port)]
+      (let [{version :v
+             salt :s
+             iterations :i} (read-and-parse-response socket)]
+        (if salt
+          (if-let [hashed-password (some-> (.getUserInfo uri)
+                                           (string/split #":")
+                                           last
+                                           (hash-password salt iterations))]
+            (send-command-with-socket socket [:hello (assoc info :pwdhash hashed-password)])
+            (throw (Exception. "Server requires password, but none has been configured")))
+          (send-command-with-socket socket [:hello info])))
+      socket)))
 
 (defn- make-pool [uri worker-info]
   (pool/get-pool #(connect uri worker-info)
