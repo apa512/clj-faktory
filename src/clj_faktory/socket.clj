@@ -70,10 +70,10 @@
     (let [result (try
                   (f)
                   (catch Exception e
-                    (prn e)
                     (if (and (seq wait-ms)
                              (retryable? e))
-                      (Thread/sleep (first wait-ms))
+                      (do (Thread/sleep (first wait-ms))
+                          (log/debug "Attempting to reconnect"))
                       (throw e))
                     ::retry))]
       (if (= result ::retry)
