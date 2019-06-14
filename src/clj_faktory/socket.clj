@@ -114,7 +114,7 @@
         (send-command-with-socket socket [:hello info])))
     socket))
 
-(defn conenct [uri info]
+(defn connect [uri info]
   (with-retries (connect* uri info)))
 
 (defn- make-pool [uri worker-info]
