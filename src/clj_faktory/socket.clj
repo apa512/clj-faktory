@@ -96,24 +96,26 @@
         (.toString (BigInteger. 1 bs) 16)
         (recur (dec i) (.digest digest bs))))))
 
-(defn connect [uri info]
-  (with-retries
-    (let [uri (URI. uri)
-          host (.getHost uri)
-          port (.getPort uri)
-          socket (sockets/create-socket host port)]
-      (let [{version :v
-             salt :s
-             iterations :i} (read-and-parse-response socket)]
-        (if salt
-          (if-let [hashed-password (some-> (.getUserInfo uri)
-                                           (string/split #":")
-                                           last
-                                           (hash-password salt iterations))]
-            (send-command-with-socket socket [:hello (assoc info :pwdhash hashed-password)])
-            (throw (Exception. "Server requires password, but none has been configured")))
-          (send-command-with-socket socket [:hello info])))
-      socket)))
+(defn- connect* [uri info]
+  (let [uri (URI. uri)
+        host (.getHost uri)
+        port (.getPort uri)
+        socket (sockets/create-socket host port)]
+    (let [{version :v
+           salt :s
+           iterations :i} (read-and-parse-response socket)]
+      (if salt
+        (if-let [hashed-password (some-> (.getUserInfo uri)
+                                         (string/split #":")
+                                         last
+                                         (hash-password salt iterations))]
+          (send-command-with-socket socket [:hello (assoc info :pwdhash hashed-password)])
+          (throw (Exception. "Server requires password, but none has been configured")))
+        (send-command-with-socket socket [:hello info])))
+    socket))
+
+(defn conenct [uri info]
+  (with-retries (connect* uri info)))
 
 (defn- make-pool [uri worker-info]
   (pool/get-pool #(connect uri worker-info)
