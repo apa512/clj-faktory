@@ -100,7 +100,8 @@
 (defn stop [{:keys [conn-pool prio-pool worker-pool :as worker-manager]}]
   (try
    (when-not (.awaitTermination worker-pool 2000 TimeUnit/MILLISECONDS)
-     (.shutdownNow worker-pool))
+     (.shutdownNow worker-pool)
+     (.awaitTermination worker-pool 2000 TimeUnit/MILLISECONDS))
    (catch InterruptedException e
      (log/debug e)
      (.shutdownNow worker-pool))
