@@ -1,14 +1,7 @@
 # clj-faktory
 
-A Clojure library designed to ... well, that part is up to you.
+Faktory workers in Clojure!
 
-## Usage
+## Install
 
-FIXME
-
-## License
-
-Copyright © 2018 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+[![Clojars Project](https://clojars.org/tech.ducktype/clj-faktory/latest-version.svg)](http://clojars.org/com.apa512/rethinkdb)
