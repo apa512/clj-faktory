@@ -1,4 +1,4 @@
-(defproject tech.ducktype/clj-faktory "0.2.19"
+(defproject tech.ducktype/clj-faktory "0.3.0"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -7,5 +7,4 @@
                  [org.clojure/tools.logging "0.4.0"]
                  [cheshire "5.8.0"]
                  [com.cognitect/transit-clj "0.8.300"]
-                 [crypto-random "1.2.0"]
-                 [pool "0.2.1"]])
+                 [crypto-random "1.2.0"]])

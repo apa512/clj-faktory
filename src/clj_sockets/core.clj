@@ -51,9 +51,9 @@
   (let [read-from-buffer (fn [^BufferedReader input-stream]
                            (.read input-stream))]
     (-> socket
-      get-reader
-      read-from-buffer
-      char)))
+        get-reader
+        read-from-buffer
+        char)))
 
 (defn read-lines
   "Read all the lines currently loaded into the input stream of a socket."
