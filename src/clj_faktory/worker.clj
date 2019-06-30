@@ -70,6 +70,7 @@
                           (catch InterruptedException e
                             [:stopped e])
                           (catch Throwable e
+                            (log/warn e)
                             [:failure e])))]
         (case result
           :success (do (client/ack @conn jid)

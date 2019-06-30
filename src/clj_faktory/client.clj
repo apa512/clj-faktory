@@ -47,7 +47,8 @@
                              (if (and (seq retry-ms)
                                       (= (:type (ex-data e)) ::conn-error))
                                [:failure]
-                               (throw e))))]
+                               (do (log/warn e)
+                                   (throw e)))))]
       (case status
         :success result
         :failure (let [wait-ms (first retry-ms)]
