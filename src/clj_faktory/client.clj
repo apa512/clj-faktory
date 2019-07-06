@@ -11,6 +11,21 @@
   (connect [this])
   (reconnect [this]))
 
+(defn- bytes->hex
+  "Convert Byte Array to Hex String"
+  ^String
+  [^"[B" data]
+  (let [len (alength data)
+        ^"[B" hex-chars (byte-array (.getBytes "0123456789abcdef" "UTF-8"))
+        ^"[B" buffer (byte-array (* 2 len))]
+    (loop [i 0]
+      (when (< i len)
+        (let [b (aget data i)]
+          (aset buffer (* 2 i) (aget hex-chars (bit-shift-right (bit-and b 0xF0) 4)))
+          (aset buffer (inc (* 2 i)) (aget hex-chars (bit-and b 0x0F))))
+        (recur (inc i))))
+    (String. buffer "UTF-8")))
+
 (defn- read-and-parse-response [conn]
   (let [response (sockets/read-line conn)
         _ (log/debug "<<<" response)
@@ -63,7 +78,7 @@
     (loop [i iterations
            bs (.getBytes (str password salt))]
       (if (= i 0)
-        (.toString (BigInteger. 1 bs) 16)
+        (bytes->hex bs)
         (recur (dec i)
                (.digest digest bs))))))
 
