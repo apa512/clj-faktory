@@ -13,6 +13,7 @@
 
 (defn- read-and-parse-response [conn]
   (let [response (sockets/read-line conn)
+        _ (log/debug "<<<" response)
         [resp-type message] (-> response
                                 ((juxt first rest))
                                 (update 1 (partial apply str)))]
