@@ -4,7 +4,7 @@
             [clojure.tools.logging :as log]
             [clj-sockets.core :as sockets])
   (:import [clojure.lang IDeref]
-           [java.net InetAddress URI]
+           [java.net InetAddress SocketException URI]
            [java.security MessageDigest]))
 
 (defprotocol Connectable
@@ -51,9 +51,12 @@
        (string/join " ")))
 
 (defn- send-command* [socket command]
-  (log/debug ">>>" (command-str command))
-  (sockets/write-line socket (command-str command))
-  (read-and-parse-response socket))
+  (try
+   (log/debug ">>>" (command-str command))
+   (sockets/write-line socket (command-str command))
+   (read-and-parse-response socket)
+   (catch SocketException e
+     (throw (ex-info (.getMessage e) {:type ::conn-error})))))
 
 (defn- send-command [socket command]
   (loop [retry-ms [1000 10000 30000]]
