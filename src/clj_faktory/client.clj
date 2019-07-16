@@ -11,6 +11,11 @@
   (connect [this])
   (reconnect [this]))
 
+(defn- retryable? [e]
+  (or (= (:type (ex-data e)) ::conn-error)
+      (string/ends-with? (.getMessage e) "i/o timeout")
+      (instance? SocketException e)))
+
 (defn- bytes->hex
   "Convert Byte Array to Hex String"
   ^String
@@ -54,9 +59,7 @@
   (try
    (log/debug ">>>" (command-str command))
    (sockets/write-line socket (command-str command))
-   (read-and-parse-response socket)
-   (catch SocketException e
-     (throw (ex-info (.getMessage e) {:type ::conn-error})))))
+   (read-and-parse-response socket)))
 
 (defn- send-command [socket command]
   (loop [retry-ms [1000 10000 30000]]
@@ -64,7 +67,7 @@
                            [:success (send-command* socket command)]
                            (catch Exception e
                              (if (and (seq retry-ms)
-                                      (= (:type (ex-data e)) ::conn-error))
+                                      (retryable? e))
                                [:failure]
                                (do (log/warn e)
                                    (throw e)))))]
