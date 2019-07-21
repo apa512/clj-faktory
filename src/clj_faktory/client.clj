@@ -7,17 +7,9 @@
            [java.net InetAddress SocketException URI]
            [java.security MessageDigest]))
 
-(def ^:dynamic *worker-n*
-  nil)
-
 (defprotocol Connectable
   (connect [this])
   (reconnect [this]))
-
-(defn- with-worker-info [s]
-  (if *worker-n*
-    (str s " [" *worker-n* "]")
-    s))
 
 (defn- retryable? [e]
   (or (= (:type (ex-data e)) ::conn-error)
@@ -41,7 +33,7 @@
 
 (defn- read-and-parse-response [conn]
   (let [response (sockets/read-line conn)
-        _ (log/debug (with-worker-info "<<<") response)
+        _ (log/debug "<<<" response)
         [resp-type message] (-> response
                                 ((juxt first rest))
                                 (update 1 (partial apply str)))]

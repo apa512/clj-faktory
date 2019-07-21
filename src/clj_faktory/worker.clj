@@ -56,30 +56,29 @@
   ([uri]
    (connect uri (worker-info))))
 
-(defn- run-work-loop [worker n]
-  (binding [client/*worker-n* n]
-    (let [conn (connect (get-in worker [::opts :uri]) (::info worker))
-          queues (get-in worker [::opts :queues])]
-      (loop []
-        (let [{:keys [jid] :as job} (decode-transit-args (client/fetch @conn queues))
-              [result e] (when job
-                           (try
-                            (if-let [handler-fn (get @registered-jobs (keyword (:jobtype job)))]
-                              (apply handler-fn (:args job))
-                              (throw (Exception. "No handler job type")))
-                            [:success]
-                            (catch InterruptedException e
-                              [:stopped e])
-                            (catch Throwable e
-                              (log/warn e)
-                              [:failure e])))]
-          (case result
-            :success (do (client/ack @conn jid)
-                         (recur))
-            :failure (do (client/fail @conn jid e)
-                         (recur))
-            :stopped (client/fail @conn jid e)
-            (recur)))))))
+(defn- run-work-loop [worker]
+  (let [conn (connect (get-in worker [::opts :uri]) (::info worker))
+        queues (get-in worker [::opts :queues])]
+    (loop []
+      (let [{:keys [jid] :as job} (decode-transit-args (client/fetch @conn queues))
+            [result e] (when job
+                         (try
+                          (if-let [handler-fn (get @registered-jobs (keyword (:jobtype job)))]
+                            (apply handler-fn (:args job))
+                            (throw (Exception. "No handler job type")))
+                          [:success]
+                          (catch InterruptedException e
+                            [:stopped e])
+                          (catch Throwable e
+                            (log/warn e)
+                            [:failure e])))]
+        (case result
+          :success (do (client/ack @conn jid)
+                       (recur))
+          :failure (do (client/fail @conn jid e)
+                       (recur))
+          :stopped (client/fail @conn jid e)
+          (recur))))))
 
 (defn register-job [job-type handler-fn]
   (if (keyword? job-type)
@@ -135,5 +134,5 @@
 
 (defn start [worker]
   (dotimes [n (get-in worker [::opts :concurrency])]
-    (.submit (::work-pool worker) #(run-work-loop worker n)))
+    (.submit (::work-pool worker) #(run-work-loop worker)))
   (assoc worker ::started? true))
