@@ -13,6 +13,12 @@
 (def registered-jobs
   (atom {}))
 
+(def daemon-thread-factory
+  (reify ThreadFactory
+    (newThread [_ runnable]
+      (doto (Thread. runnable)
+        (.setDaemon true)))))
+
 (defn- encode-transit-args [job]
   (-> job
       (update :args (comp vector transit/write))
@@ -38,17 +44,13 @@
    :hostname (hostname)
    :v 2})
 
-(defn- keep-alive [conn wid heartbeat]
-  (let [thread-factory (reify ThreadFactory
-                         (newThread [_ runnable]
-                           (doto (Thread. runnable)
-                             (.setDaemon true))))]
-    (.scheduleWithFixedDelay (ScheduledThreadPoolExecutor. 1 thread-factory)
-                             (fn []
-                               (client/beat conn wid))
-                             heartbeat
-                             heartbeat
-                             TimeUnit/MILLISECONDS)))
+(defn- keep-alive [conn pool wid heartbeat]
+  (.scheduleWithFixedDelay pool
+                           (fn []
+                             (client/beat conn wid))
+                           heartbeat
+                           heartbeat
+                           TimeUnit/MILLISECONDS))
 
 (defn connect
   ([uri worker-info]
@@ -110,17 +112,20 @@
                              :heartbeat   10000} opts)
         info (worker-info)
         conn (connect uri info)
+        beat-pool (ScheduledThreadPoolExecutor. 1 daemon-thread-factory)
         beat-conn (connect uri info)
         work-pool (Executors/newFixedThreadPool concurrency)]
-    (keep-alive @conn (:wid info) heartbeat)
+    (keep-alive @conn beat-pool (:wid info) heartbeat)
     {::info info
      ::opts (assoc opts :uri uri)
      ::conn conn
+     ::beat-pool beat-pool
      ::beat-conn beat-conn
      ::work-pool work-pool}))
 
-(defn stop [{:keys [::work-pool ::beat-conn ::conn] :as worker}]
+(defn stop [{:keys [::work-pool ::beat-pool ::beat-conn ::conn] :as worker}]
   (try
+   (.shutdownNow beat-pool)
    (when-not (.awaitTermination work-pool 5000 TimeUnit/MILLISECONDS)
      (.shutdownNow work-pool)
      (.awaitTermination work-pool 5000 TimeUnit/MILLISECONDS))
@@ -135,4 +140,4 @@
 (defn start [worker]
   (dotimes [n (get-in worker [::opts :concurrency])]
     (.submit (::work-pool worker) #(run-work-loop worker)))
-  (assoc worker ::started? true))
+  worker)

@@ -1,4 +1,4 @@
-(defproject tech.ducktype/clj-faktory "0.3.8"
+(defproject tech.ducktype/clj-faktory "0.3.9"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
