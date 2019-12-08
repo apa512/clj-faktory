@@ -61,9 +61,10 @@
    (sockets/write-line socket (command-str command))
    (read-and-parse-response socket)))
 
-(defn- send-command [socket command]
+(defn- send-command [conn command]
   (loop [retry-ms [1000 10000 30000]]
-    (let [[status result] (try
+    (let [socket @conn
+          [status result] (try
                            [:success (send-command* socket command)]
                            (catch Exception e
                              (if (and (seq retry-ms)
@@ -76,6 +77,9 @@
         :failure (let [wait-ms (first retry-ms)]
                    (log/warn (str "Connection error. Retrying in " wait-ms " ms."))
                    (Thread/sleep wait-ms)
+                   (try
+                    (reconnect conn)
+                    (catch SocketException _))
                    (recur (rest retry-ms)))))))
 
 (defn- hash-password
@@ -120,9 +124,9 @@
                                          (string/split #":")
                                          (last)
                                          (hash-password salt iterations))]
-          (send-command conn [:hello (assoc worker-info :pwdhash hashed-password)])
+          (send-command* conn [:hello (assoc worker-info :pwdhash hashed-password)])
           (throw (Exception. "Server requires password, but none has been configured")))
-        (send-command conn [:hello worker-info])))
+        (send-command* conn [:hello worker-info])))
     conn))
 
 (deftype Connection [uri worker-info conn-atom]

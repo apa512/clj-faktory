@@ -62,7 +62,7 @@
   (let [conn (connect (get-in worker [::opts :uri]) (::info worker))
         queues (get-in worker [::opts :queues])]
     (loop []
-      (let [{:keys [jid] :as job} (decode-transit-args (client/fetch @conn queues))
+      (let [{:keys [jid] :as job} (decode-transit-args (client/fetch conn queues))
             [result e] (when job
                          (try
                           (if-let [handler-fn (get @registered-jobs (keyword (:jobtype job)))]
@@ -75,11 +75,11 @@
                             (log/warn e)
                             [:failure e])))]
         (case result
-          :success (do (client/ack @conn jid)
+          :success (do (client/ack conn jid)
                        (recur))
-          :failure (do (client/fail @conn jid e)
+          :failure (do (client/fail conn jid e)
                        (recur))
-          :stopped (client/fail @conn jid e)
+          :stopped (client/fail conn jid e)
           (recur))))))
 
 (defn register-job [job-type handler-fn]
@@ -99,7 +99,7 @@
                                :backtrace 10}
                               opts)
                  (transit-args? args) (encode-transit-args))]
-       (client/push @(::conn worker) job)
+       (client/push (::conn worker) job)
        jid)
      (throw (Exception. "Job type has not been registered"))))
   ([worker job-type args]
@@ -115,7 +115,7 @@
         beat-pool (ScheduledThreadPoolExecutor. 1 daemon-thread-factory)
         beat-conn (connect uri info)
         work-pool (Executors/newFixedThreadPool concurrency)]
-    (keep-alive @conn beat-pool (:wid info) heartbeat)
+    (keep-alive conn beat-pool (:wid info) heartbeat)
     {::info info
      ::opts (assoc opts :uri uri)
      ::conn conn
