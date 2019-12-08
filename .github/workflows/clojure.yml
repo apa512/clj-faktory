@@ -12,13 +12,10 @@ jobs:
         image: contribsys/faktory:1.1.0
         ports:
           - 7419:7419
-          - 7420:7420
 
     steps:
     - uses: actions/checkout@v1
     - name: Install dependencies
-      run: lein depsK
+      run: lein deps
     - name: Run tests
       run: lein test
-      env:
-        FAKTORY_URL: "tcp://faktory:7419"
