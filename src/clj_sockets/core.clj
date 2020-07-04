@@ -3,8 +3,7 @@
   (:require [clojure.java.io :refer [writer reader]])
   (:refer-clojure :exclude [read-line])
   (:import (java.net Socket ServerSocket)
-           (java.io BufferedWriter BufferedReader)
-           (clojure.lang Seqable)))
+           (java.io BufferedWriter BufferedReader)))
 
 (defn create-socket
   "Connect a socket to a remote host. The call blocks until

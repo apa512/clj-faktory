@@ -1,6 +1,6 @@
-(defproject tech.ducktype/clj-faktory "0.3.10"
-  :description "FIXME: write description"
-  :url "http://example.com/FIXME"
+(defproject tech.ducktype/clj-faktory "0.3.11"
+  :description "Faktory workers in Clojure!"
+  :url "https://github.com/apa512/clj-faktory"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]

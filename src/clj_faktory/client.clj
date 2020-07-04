@@ -4,7 +4,7 @@
             [clojure.tools.logging :as log]
             [clj-sockets.core :as sockets])
   (:import [clojure.lang IDeref]
-           [java.net InetAddress SocketException URI]
+           [java.net SocketException URI]
            [java.security MessageDigest]))
 
 (defprotocol Connectable
@@ -107,6 +107,9 @@
 (defn beat [conn wid]
   (send-command conn [:beat {:wid wid}]))
 
+(defn info [conn]
+  (send-command conn [:info]))
+
 (defn push [conn job]
   (send-command conn [:push job]))
 
@@ -116,8 +119,7 @@
         port (.getPort uri)
         conn (sockets/create-socket host port)]
     (.setKeepAlive conn true)
-    (let [{version :v
-           salt :s
+    (let [{salt :s
            iterations :i} (read-and-parse-response conn)]
       (if salt
         (if-let [hashed-password (some-> (.getUserInfo uri)

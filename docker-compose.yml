@@ -1,7 +1,7 @@
 version: '3'
 services:
   faktory:
-    image: contribsys/faktory:0.9.6
+    image: contribsys/faktory:1.4.0
     ports:
       - "7419:7419"
       - "7420:7420"

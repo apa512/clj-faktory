@@ -5,6 +5,7 @@
 (def worker        worker/worker)
 (def start         worker/start)
 (def stop          worker/stop)
+(def info          worker/info)
 
 (defmacro defjob [job-type params & body]
   `(worker/register-job ~job-type (fn ~params ~@body)))

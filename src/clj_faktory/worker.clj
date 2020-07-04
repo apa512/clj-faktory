@@ -6,8 +6,7 @@
             [clojure.string :as string]
             [clojure.tools.logging :as log]
             [crypto.random :as random])
-  (:import [clojure.lang IDeref]
-           [java.net InetAddress]
+  (:import [java.net InetAddress]
            [java.util.concurrent Executors ScheduledThreadPoolExecutor ThreadFactory TimeUnit]))
 
 (def registered-jobs
@@ -105,6 +104,9 @@
   ([worker job-type args]
    (perform-async worker job-type args {})))
 
+(defn info [worker]
+  (client/info (::conn worker)))
+
 (defn worker [uri opts]
   (let [{:keys [concurrency heartbeat]
          :as   opts} (merge {:concurrency 10
@@ -138,6 +140,6 @@
   worker)
 
 (defn start [worker]
-  (dotimes [n (get-in worker [::opts :concurrency])]
+  (dotimes [_ (get-in worker [::opts :concurrency])]
     (.submit (::work-pool worker) #(run-work-loop worker)))
   worker)

@@ -1,5 +1,6 @@
 (ns clj-faktory.core-test
   (:require [clojure.test :refer :all]
+            [clj-faktory.client :as client]
             [clj-faktory.core :refer :all]))
 
 (deftest core-test
