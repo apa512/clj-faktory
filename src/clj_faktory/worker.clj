@@ -129,12 +129,15 @@
   (try
    (.shutdownNow beat-pool)
    (when-not (.awaitTermination work-pool 5000 TimeUnit/MILLISECONDS)
+     (log/debug "Shutting down gracefully")
      (.shutdownNow work-pool)
      (.awaitTermination work-pool 5000 TimeUnit/MILLISECONDS))
    (catch InterruptedException e
+     (log/debug "Failed to shutdown gracefully")
      (log/debug e)
      (.shutdownNow work-pool))
    (finally
+    (log/debug "Closing connection")
     (.close @conn)
     (.close @beat-conn)))
   worker)
