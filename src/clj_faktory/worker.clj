@@ -69,17 +69,17 @@
                             (throw (Exception. "No handler job type")))
                           [:success]
                           (catch InterruptedException e
+                            (log/warn e)
                             [:stopped e])
                           (catch Throwable e
                             (log/warn e)
                             [:failure e])))]
-        (log/debug "RESULT" jid result)
         (case result
           :success (do (client/ack conn jid)
                        (recur))
-          :failure (do (client/fail conn jid e)
+          :failure (do (log/info "FAIL") (client/fail conn jid e)
                        (recur))
-          :stopped (client/fail conn jid e)
+          :stopped (do (log/info "STOP") (client/fail conn jid e))
           (recur))))))
 
 (defn register-job [job-type handler-fn]
@@ -130,15 +130,15 @@
   (try
    (.shutdownNow beat-pool)
    (when-not (.awaitTermination work-pool 5000 TimeUnit/MILLISECONDS)
-     (log/debug "Shutting down gracefully")
+     (log/info "Shutting down gracefully")
      (.shutdownNow work-pool)
      (.awaitTermination work-pool 5000 TimeUnit/MILLISECONDS))
    (catch InterruptedException e
-     (log/debug "Failed to shutdown gracefully")
-     (log/debug e)
+     (log/info "Failed to shutdown gracefully")
+     (log/info e)
      (.shutdownNow work-pool))
    (finally
-    (log/debug "Closing connection")
+    (log/info "Closing connection")
     (.close @conn)
     (.close @beat-conn)))
   worker)
