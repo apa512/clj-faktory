@@ -73,6 +73,7 @@
                           (catch Throwable e
                             (log/warn e)
                             [:failure e])))]
+        (log/debug "RESULT" jid result)
         (case result
           :success (do (client/ack conn jid)
                        (recur))
