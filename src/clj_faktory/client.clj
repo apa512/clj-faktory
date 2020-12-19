@@ -56,10 +56,9 @@
        (string/join " ")))
 
 (defn- send-command* [socket command]
-  (try
-   (log/debug ">>>" (command-str command))
-   (sockets/write-line socket (command-str command))
-   (read-and-parse-response socket)))
+  (log/debug ">>>" (command-str command))
+  (sockets/write-line socket (command-str command))
+  (read-and-parse-response socket))
 
 (defn- send-command [conn command]
   (loop [retry-ms [1000 10000 30000]]
