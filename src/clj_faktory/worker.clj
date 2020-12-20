@@ -61,25 +61,18 @@
   (let [conn (connect (get-in worker [::opts :uri]) (::info worker))
         queues (get-in worker [::opts :queues])]
     (loop []
-      (let [{:keys [jid] :as job} (decode-transit-args (client/fetch conn queues))
-            [result e] (when job
-                         (try
-                          (if-let [handler-fn (get @registered-jobs (keyword (:jobtype job)))]
-                            (apply handler-fn (:args job))
-                            (throw (Exception. "No handler job type")))
-                          [:success]
-                          (catch InterruptedException e
-                            [:stopped e])
-                          (catch Throwable e
-                            (log/warn e)
-                            [:failure e])))]
-        (case result
-          :success (do (client/ack conn jid)
-                       (recur))
-          :failure (do (client/fail conn jid e)
-                       (recur))
-          :stopped (client/fail conn jid e)
-          (recur))))))
+      (when-not @(::stopped? worker)
+        (when-let [{:keys [jid] :as job} (decode-transit-args (client/fetch conn queues))]
+          (try
+           (if-let [handler-fn (get @registered-jobs (keyword (:jobtype job)))]
+             (do (apply handler-fn (:args job))
+                 (client/ack conn jid))
+             (throw (Exception. "No handler job type")))
+           (catch Throwable e
+             (log/warn e)
+             (client/fail conn jid e)))))
+      (when-not @(::stopped? worker)
+        (recur)))))
 
 (defn register-job [job-type handler-fn]
   (if (keyword? job-type)
@@ -123,10 +116,12 @@
      ::conn conn
      ::beat-pool beat-pool
      ::beat-conn beat-conn
-     ::work-pool work-pool}))
+     ::work-pool work-pool
+     ::stopped? (atom false)}))
 
 (defn stop [{:keys [::work-pool ::beat-pool ::beat-conn ::conn] :as worker}]
   (try
+   (reset! (::stopped? worker) true)
    (.shutdownNow beat-pool)
    (when-not (.awaitTermination work-pool 5000 TimeUnit/MILLISECONDS)
      (.shutdownNow work-pool)
@@ -139,6 +134,8 @@
   worker)
 
 (defn start [worker]
+  (when @(::stopped? worker)
+    (throw (Exception. "A stopped worker cannot be started again")))
   (dotimes [_ (get-in worker [::opts :concurrency])]
     (.submit (::work-pool worker) #(run-work-loop worker)))
   worker)
