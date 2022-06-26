@@ -120,14 +120,17 @@
      ::stopped? (atom false)}))
 
 (defn stop [{:keys [::work-pool ::beat-pool ::beat-conn ::conn] :as worker}]
+  (log/debug "Stopping worker")
   (try
    (reset! (::stopped? worker) true)
    (.shutdownNow beat-pool)
-   (when-not (.awaitTermination work-pool 5000 TimeUnit/MILLISECONDS)
-     (.shutdownNow work-pool)
-     (.awaitTermination work-pool 5000 TimeUnit/MILLISECONDS))
+   (.shutdown work-pool)
+   (.shutdownNow work-pool)
+   (when-not (.awaitTermination work-pool 10000 TimeUnit/MILLISECONDS)
+     (throw (Exception. "Could not shut down work pool properly")))
    (catch InterruptedException _
-     (.shutdownNow work-pool))
+     (.shutdownNow work-pool)
+     (.interrupt (Thread/currentThread)))
    (finally
     (.close @conn)
     (.close @beat-conn)))
