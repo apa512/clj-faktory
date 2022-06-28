@@ -124,16 +124,23 @@
   (try
    (reset! (::stopped? worker) true)
    (.shutdownNow beat-pool)
+   (println 1)
    (.shutdown work-pool)
+   (println 2)
    (.shutdownNow work-pool)
+   (println 3)
    (when-not (.awaitTermination work-pool 10000 TimeUnit/MILLISECONDS)
      (throw (Exception. "Could not shut down work pool properly")))
+   (println 4)
    (catch InterruptedException _
+     (println 5)
      (.shutdownNow work-pool)
      (.interrupt (Thread/currentThread)))
    (finally
+    (println 6)
     (.close @conn)
-    (.close @beat-conn)))
+    (.close @beat-conn)
+    (println 7)))
   worker)
 
 (defn start [worker]
