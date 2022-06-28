@@ -69,6 +69,7 @@
                  (client/ack conn jid))
              (throw (Exception. "No handler job type")))
            (catch Throwable e
+             (prn "Throwable" e)
              (log/warn e)
              (client/fail conn jid e)))))
       (when-not @(::stopped? worker)

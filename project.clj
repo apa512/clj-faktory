@@ -1,4 +1,4 @@
-(defproject tech.ducktype/clj-faktory "0.3.19"
+(defproject tech.ducktype/clj-faktory "0.3.20"
   :description "Faktory workers in Clojure!"
   :url "https://github.com/apa512/clj-faktory"
   :license {:name "Eclipse Public License"
