@@ -69,7 +69,6 @@
                  (client/ack conn jid))
              (throw (Exception. "No handler job type")))
            (catch Throwable e
-             (prn "Throwable" e)
              (log/warn e)
              (client/fail conn jid e)))))
       (when-not @(::stopped? worker)
@@ -121,27 +120,17 @@
      ::stopped? (atom false)}))
 
 (defn stop [{:keys [::work-pool ::beat-pool ::beat-conn ::conn] :as worker}]
-  (log/debug "Stopping worker")
   (try
    (reset! (::stopped? worker) true)
-   (.shutdownNow beat-pool)
-   (println 1)
    (.shutdown work-pool)
-   (println 2)
-   (.shutdownNow work-pool)
-   (println 3)
-   (when-not (.awaitTermination work-pool 10000 TimeUnit/MILLISECONDS)
-     (throw (Exception. "Could not shut down work pool properly")))
-   (println 4)
-   (catch InterruptedException _
-     (println 5)
+   (when-not (.awaitTermination work-pool 1 TimeUnit/SECONDS)
      (.shutdownNow work-pool)
-     (.interrupt (Thread/currentThread)))
+     (when-not (.awaitTermination work-pool 10 TimeUnit/SECONDS)
+       (throw (Exception. "Could not shut down work pool properly"))))
    (finally
-    (println 6)
+    (.shutdownNow beat-pool)
     (.close @conn)
-    (.close @beat-conn)
-    (println 7)))
+    (.close @beat-conn)))
   worker)
 
 (defn start [worker]
