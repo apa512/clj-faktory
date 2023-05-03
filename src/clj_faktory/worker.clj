@@ -1,13 +1,10 @@
 (ns clj-faktory.worker
-  (:require [cheshire.core :as cheshire]
-            [clj-faktory.client :as client]
+  (:require [clj-faktory.client :as client]
             [clj-faktory.protocol.transit :as transit]
-            [clojure.java.shell :as shell]
-            [clojure.string :as string]
+            [clj-faktory.utils :as utils]
             [clojure.tools.logging :as log]
             [crypto.random :as random])
-  (:import [java.net InetAddress]
-           [java.util.concurrent Executors ScheduledThreadPoolExecutor ThreadFactory TimeUnit]))
+  (:import [java.util.concurrent Executors ScheduledThreadPoolExecutor ThreadFactory TimeUnit]))
 
 (def registered-jobs
   (atom {}))
@@ -18,30 +15,10 @@
       (doto (Thread. runnable)
         (.setDaemon true)))))
 
-(defn- encode-transit-args [job]
-  (-> job
-      (update :args (comp vector transit/write))
-      (assoc-in [:custom :args-encoding] "transit")))
-
 (defn- decode-transit-args [job]
   (if (= (get-in job [:custom :args-encoding]) "transit")
     (update job :args (comp transit/read first))
     job))
-
-(defn transit-args? [args]
-  (not= args (cheshire/parse-string (cheshire/generate-string args))))
-
-(defn- hostname []
-  (or (try (.getHostName (InetAddress/getLocalHost))
-           (catch Exception _))
-      (some-> (shell/sh "hostname")
-              (:out)
-              (string/trim))))
-
-(defn- worker-info []
-  {:wid (random/hex 12)
-   :hostname (hostname)
-   :v 2})
 
 (defn- keep-alive [conn pool wid heartbeat]
   (.scheduleWithFixedDelay pool
@@ -55,7 +32,7 @@
   ([uri worker-info]
    (.connect (client/connection uri worker-info)))
   ([uri]
-   (connect uri (worker-info))))
+   (connect uri (utils/client-info))))
 
 (defn- run-work-loop [worker]
   (let [conn (connect (get-in worker [::opts :uri]) (::info worker))
@@ -90,7 +67,7 @@
                                :retry 25
                                :backtrace 10}
                               opts)
-                 (transit-args? args) (encode-transit-args))]
+                 (utils/transit-args? args) (utils/encode-transit-args))]
        (client/push (::conn worker) job)
        jid)
      (throw (Exception. "Job type has not been registered"))))
@@ -105,7 +82,7 @@
          :as   opts} (merge {:concurrency 10
                              :queues      ["default"]
                              :heartbeat   10000} opts)
-        info (worker-info)
+        info (utils/client-info)
         conn (connect uri info)
         beat-pool (ScheduledThreadPoolExecutor. 1 daemon-thread-factory)
         beat-conn (connect uri info)
